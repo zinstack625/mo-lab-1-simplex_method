@@ -10,9 +10,6 @@ pub enum SimplexError {
     InvalidDataError,
 }
 
-#[cfg(test)]
-mod tests;
-
 pub struct Table {
     pub table: Array2<f64>,
     pub base_var: Vec<String>,
@@ -22,13 +19,13 @@ pub struct Table {
 impl Display for Table {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for i in self.supp_var.iter() {
-            write!(f, "\t| {}\t\t", i)?;
+            write!(f, "\t| {}\t", i)?;
         }
         write!(f, "\n")?;
         for i in 0..self.table.nrows() {
             write!(f, "{}", self.base_var[i])?;
             for j in self.table.row(i).iter() {
-                write!(f, "\t| {}", j)?;
+                write!(f, "\t| {:.7}", j)?;
             }
             write!(f, "\n")?;
         }
@@ -65,7 +62,7 @@ impl Table {
         }
         supp_var.push("S".to_string());
         let mut base_var = Vec::<String>::with_capacity(constr_coeff.nrows());
-        for i in 1..constr_coeff.nrows() {
+        for i in 0..constr_coeff.nrows() - 1 {
             base_var.push((i + constr_coeff.ncols()).to_string());
         }
         base_var.push("F".to_string());
@@ -76,7 +73,7 @@ impl Table {
         }
     }
     pub fn optimise(&mut self) -> Result<(), crate::SimplexError> {
-        debug!("Beginning table:\n{}", self.table);
+        debug!("Beginning table:\n{}", self);
         loop {
             let negative_row = self.find_in_free_column();
             if negative_row.is_none() {
@@ -85,12 +82,12 @@ impl Table {
             let negative_row = negative_row.unwrap();
             debug!("Found negative free coeff in row {}", negative_row);
             self.make_acceptable(negative_row)?;
-            debug!("Making acceptable:\n{}", self.table);
+            debug!("Making acceptable:\n{}", self);
         }
         // begin transformation
         while !self.check_optimised() {
             self.iterate()?;
-            debug!("Iteration:\n{}\n", self.table);
+            debug!("Iteration:\n{}\n", self);
         }
         Ok(())
     }
@@ -225,13 +222,13 @@ impl Table {
         self.table[[pivot.0, pivot.1]] = 1f64 / pivot_cpy;
     }
     pub fn print_function(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for i in self.table.column(0).iter().enumerate() {
+        for i in self.table.column(self.table.ncols() - 1).iter().enumerate() {
             if i.0 >= self.table.nrows() - 1 {
                 break;
             }
             writeln!(f, "X_{} = {}", self.base_var[i.0], i.1)?;
         }
-        write!(f, "F = {}", self.table.column(0).last().unwrap())?;
+        write!(f, "F = {}", self.table.column(self.table.ncols() - 1).last().unwrap())?;
         Ok(())
     }
 }
