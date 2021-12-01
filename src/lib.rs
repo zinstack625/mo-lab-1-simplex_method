@@ -1,6 +1,6 @@
 use log::debug;
 use ndarray::{Array1, Array2, ArrayView1};
-use std::fmt::Display;
+use std::{clone, fmt::Display};
 
 #[derive(Debug)]
 pub enum SimplexError {
@@ -32,6 +32,16 @@ impl Display for Table {
         writeln!(f, "")?; // empty line
         self.print_function(f)?;
         Ok(())
+    }
+}
+
+impl Clone for Table {
+    fn clone(&self) -> Table {
+        Table {
+            table: self.table.clone(),
+            base_var: self.base_var.clone(),
+            supp_var: self.supp_var.clone(),
+        }
     }
 }
 
@@ -139,7 +149,7 @@ impl Table {
         if let Some(i) = self.find_pivot_row(j) {
             debug!("Transforming on pivot i: {}\tj: {}", i, j);
             self.transform((i, j));
-            std::mem::swap(&mut self.base_var[j], &mut self.supp_var[i]);
+            std::mem::swap(&mut self.base_var[i], &mut self.supp_var[j]);
             return Ok(());
         } else {
             return Err(SimplexError::UnableToCalculateError);
@@ -150,7 +160,7 @@ impl Table {
         let (i, j) = self.find_pivot()?;
         debug!("Current pivot: i: {}\tj:{}", i, j);
         self.transform((i, j));
-        std::mem::swap(&mut self.base_var[j], &mut self.supp_var[i]);
+        std::mem::swap(&mut self.base_var[i], &mut self.supp_var[j]);
         Ok(())
     }
 
@@ -194,7 +204,7 @@ impl Table {
                 break;
             }
             let relation = i.1 / self.table[[i.0, column]];
-            if (min.is_none() || relation < min.unwrap()) && relation.is_sign_positive() {
+            if (min.is_none() || relation < min.unwrap()) && relation.is_sign_positive() && relation.is_finite() {
                 min = Some(relation);
                 min_index = Some(i.0);
             }
