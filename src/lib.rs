@@ -1,6 +1,6 @@
 use log::debug;
 use ndarray::{Array1, Array2, ArrayView1};
-use std::{clone, fmt::Display};
+use std::fmt::Display;
 
 #[derive(Debug)]
 pub enum SimplexError {
@@ -18,12 +18,12 @@ pub struct Table {
 
 impl Display for Table {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for i in self.supp_var.iter() {
+        for i in self.base_var.iter() {
             write!(f, "\t| {}\t", i)?;
         }
         write!(f, "\n")?;
         for i in 0..self.table.nrows() {
-            write!(f, "{}", self.base_var[i])?;
+            write!(f, "{}", self.supp_var[i])?;
             for j in self.table.row(i).iter() {
                 write!(f, "\t| {:.7}", j)?;
             }
@@ -66,16 +66,16 @@ impl Table {
         constr_coeff
             .push_column(ArrayView1::from(&constr_val))
             .unwrap();
-        let mut supp_var = Vec::<String>::with_capacity(constr_coeff.ncols() - 1);
+        let mut base_var = Vec::<String>::with_capacity(constr_coeff.ncols() - 1);
         for i in 1..constr_coeff.ncols() {
-            supp_var.push(i.to_string());
+            base_var.push(i.to_string());
         }
-        supp_var.push("S".to_string());
-        let mut base_var = Vec::<String>::with_capacity(constr_coeff.nrows());
+        base_var.push("S".to_string());
+        let mut supp_var = Vec::<String>::with_capacity(constr_coeff.nrows());
         for i in 0..constr_coeff.nrows() - 1 {
-            base_var.push((i + constr_coeff.ncols()).to_string());
+            supp_var.push((i + constr_coeff.ncols()).to_string());
         }
-        base_var.push("F".to_string());
+        supp_var.push("F".to_string());
         Table {
             table: constr_coeff,
             base_var,
@@ -149,7 +149,7 @@ impl Table {
         if let Some(i) = self.find_pivot_row(j) {
             debug!("Transforming on pivot i: {}\tj: {}", i, j);
             self.transform((i, j));
-            std::mem::swap(&mut self.base_var[i], &mut self.supp_var[j]);
+            std::mem::swap(&mut self.base_var[j], &mut self.supp_var[i]);
             return Ok(());
         } else {
             return Err(SimplexError::UnableToCalculateError);
@@ -160,7 +160,7 @@ impl Table {
         let (i, j) = self.find_pivot()?;
         debug!("Current pivot: i: {}\tj:{}", i, j);
         self.transform((i, j));
-        std::mem::swap(&mut self.base_var[i], &mut self.supp_var[j]);
+        std::mem::swap(&mut self.base_var[j], &mut self.supp_var[i]);
         Ok(())
     }
 
@@ -236,7 +236,7 @@ impl Table {
             if i.0 >= self.table.nrows() - 1 {
                 break;
             }
-            writeln!(f, "X_{} = {}", self.base_var[i.0], i.1)?;
+            writeln!(f, "X_{} = {}", self.supp_var[i.0], i.1)?;
         }
         write!(f, "F = {}", self.table.column(self.table.ncols() - 1).last().unwrap())?;
         Ok(())
